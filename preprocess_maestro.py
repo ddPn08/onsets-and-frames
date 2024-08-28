@@ -69,10 +69,6 @@ def main(
             data[key] = raw_metadata[key][str(idx)]
         metadata.append(Metadata.model_validate(data))
 
-    valid_metadata = [m for m in metadata if m.split in ["validation"]][:5]
-    train_metadata = [m for m in metadata if m.split in ["train"]][:100]
-    metadata = valid_metadata + train_metadata
-
     label_dir = os.path.join(dest_path, "label")
     audio_dir = os.path.join(dest_path, "wav")
     for split in ["train", "validation", "test"]:

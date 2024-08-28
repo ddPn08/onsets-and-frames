@@ -140,3 +140,45 @@ class OnsetsAndFrames(nn.Module):
         frame_pred = self.combined_stack(combined_pred)
         velocity_pred = self.velocity_stack(x)
         return onset_pred, offset_pred, activation_pred, frame_pred, velocity_pred
+
+
+class OnsetsAndFramesPedal(nn.Module):
+    def __init__(
+        self, input_features: int, output_features: int, model_complexity: int = 48
+    ):
+        super().__init__()
+
+        model_size = model_complexity * 16
+
+        self.onset_stack = nn.Sequential(
+            ConvStack(input_features, model_size),
+            sequence_model(model_size, model_size),
+            nn.Linear(model_size, output_features),
+            nn.Sigmoid(),
+        )
+        self.offset_stack = nn.Sequential(
+            ConvStack(input_features, model_size),
+            sequence_model(model_size, model_size),
+            nn.Linear(model_size, output_features),
+            nn.Sigmoid(),
+        )
+        self.frame_stack = nn.Sequential(
+            ConvStack(input_features, model_size),
+            nn.Linear(model_size, output_features),
+            nn.Sigmoid(),
+        )
+        self.combined_stack = nn.Sequential(
+            sequence_model(output_features * 3, model_size),
+            nn.Linear(model_size, output_features),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x: torch.Tensor):
+        onset_pred = self.onset_stack(x)
+        offset_pred = self.offset_stack(x)
+        activation_pred = self.frame_stack(x)
+        combined_pred = torch.cat(
+            [onset_pred.detach(), offset_pred.detach(), activation_pred], dim=-1
+        )
+        frame_pred = self.combined_stack(combined_pred)
+        return onset_pred, offset_pred, activation_pred, frame_pred

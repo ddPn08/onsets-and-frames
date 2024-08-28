@@ -17,6 +17,7 @@ from modules.constants import (
 from modules.decoding import extract_notes
 from modules.midi import create_midi
 from modules.models import OnsetsAndFrames
+from modules.utils import save_pianoroll
 
 
 def fix_state_dict(state_dict):
@@ -65,10 +66,10 @@ def main(
 
     n_steps = (len(audio) - 1) // HOP_LENGTH + 1
 
-    onset_pred_all = torch.zeros(n_steps, MAX_MIDI - MIN_MIDI + 1)
-    offset_pred_all = torch.zeros(n_steps, MAX_MIDI - MIN_MIDI + 1)
-    frame_pred_all = torch.zeros(n_steps, MAX_MIDI - MIN_MIDI + 1)
-    velocity_pred_all = torch.zeros(n_steps, MAX_MIDI - MIN_MIDI + 1)
+    onset_pred_all = torch.zeros((n_steps, MAX_MIDI - MIN_MIDI + 1))
+    offset_pred_all = torch.zeros((n_steps, MAX_MIDI - MIN_MIDI + 1))
+    frame_pred_all = torch.zeros((n_steps, MAX_MIDI - MIN_MIDI + 1))
+    velocity_pred_all = torch.zeros((n_steps, MAX_MIDI - MIN_MIDI + 1))
 
     with torch.no_grad():
         for i in tqdm.tqdm(range(0, len(audio), sequence_length)):
@@ -81,25 +82,21 @@ def main(
 
             onset_pred = (
                 onset_pred.reshape((onset_pred.shape[1], onset_pred.shape[2]))
-                .sigmoid()
                 .detach()
                 .cpu()
             )
             offset_pred = (
                 offset_pred.reshape((offset_pred.shape[1], offset_pred.shape[2]))
-                .sigmoid()
                 .detach()
                 .cpu()
             )
             frame_pred = (
                 frame_pred.reshape((frame_pred.shape[1], frame_pred.shape[2]))
-                .sigmoid()
                 .detach()
                 .cpu()
             )
             velocity_pred = (
                 velocity_pred.reshape((velocity_pred.shape[1], velocity_pred.shape[2]))
-                .sigmoid()
                 .detach()
                 .cpu()
             )
@@ -108,8 +105,6 @@ def main(
             offset_pred_all[step : step + offset_pred.shape[0]] = offset_pred
             frame_pred_all[step : step + frame_pred.shape[0]] = frame_pred
             velocity_pred_all[step : step + velocity_pred.shape[0]] = velocity_pred
-
-    print(onset_pred_all.shape, onset_pred_all[1000:2000, :])
 
     scaling = HOP_LENGTH / SAMPLE_RATE
     notes = extract_notes(
@@ -125,15 +120,13 @@ def main(
         print("No notes found.")
         return
 
-    # i_est = (i_est * scaling).reshape(-1, 2)
-    # p_est = np.array([midi_to_hz(MIN_MIDI + midi) for midi in p_est])
-    # save_pianoroll(
-    #     output_path + ".png",
-    #     onset_pred_all,
-    #     frame_pred_all,
-    #     onset_threshold,
-    #     frame_threshold,
-    # )
+    save_pianoroll(
+        output_path + ".png",
+        onset_pred_all,
+        frame_pred_all,
+        onset_threshold,
+        frame_threshold,
+    )
 
     midi = create_midi(notes)
     midi.write(output_path)

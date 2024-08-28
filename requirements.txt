@@ -2,6 +2,7 @@ torch
 torchaudio
 lightning
 
+fire
 pydantic
 pretty_midi
 tqdm

@@ -77,9 +77,9 @@ class TranscriberModule(LightningModule):
         frame_pred = frame_pred.reshape(frame_label.shape)
         velocity_pred = velocity_pred.reshape(velocity_label.shape)
 
-        onset_loss = F.binary_cross_entropy_with_logits(onset_pred, onset_label)
-        offset_loss = F.binary_cross_entropy_with_logits(offset_pred, offset_label)
-        frame_loss = F.binary_cross_entropy_with_logits(frame_pred, frame_label)
+        onset_loss = F.binary_cross_entropy(onset_pred, onset_label)
+        offset_loss = F.binary_cross_entropy(offset_pred, offset_label)
+        frame_loss = F.binary_cross_entropy(frame_pred, frame_label)
         velocity_loss = weighted_mse_loss(velocity_pred, velocity_label, onset_label)
 
         loss = onset_loss + offset_loss + frame_loss + velocity_loss
@@ -108,9 +108,9 @@ class TranscriberModule(LightningModule):
         offset_pred = offset_pred.reshape(offset_label.shape)
         frame_pred = frame_pred.reshape(frame_label.shape)
 
-        onset_loss = F.binary_cross_entropy_with_logits(onset_pred, onset_label)
-        offset_loss = F.binary_cross_entropy_with_logits(offset_pred, offset_label)
-        frame_loss = F.binary_cross_entropy_with_logits(frame_pred, frame_label)
+        onset_loss = F.binary_cross_entropy(onset_pred, onset_label)
+        offset_loss = F.binary_cross_entropy(offset_pred, offset_label)
+        frame_loss = F.binary_cross_entropy(frame_pred, frame_label)
 
         loss = onset_loss + offset_loss + frame_loss
 
