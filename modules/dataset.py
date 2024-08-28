@@ -66,19 +66,14 @@ class TranscriptionDataset(data.Dataset):
         start_step = segment.onset // HOP_LENGTH
         end_step = segment.offset // HOP_LENGTH
 
-        padding = self.sequence_length - (segment.offset - segment.onset)
-        pad_step = math.ceil(padding / HOP_LENGTH)
-
-        pad_audio = torch.zeros(padding, dtype=audio.dtype, device=audio.device)
-        pad_label = torch.zeros(
-            (pad_step, note_label.shape[1]),
-            dtype=note_label.dtype,
-            device=note_label.device,
-        )
-
         audio = audio[segment.onset : segment.offset]
         note_label = note_label[start_step:end_step]
         velocity = velocity[start_step:end_step]
+
+        padding = self.sequence_length - len(audio)
+        padding_step = math.ceil(padding / HOP_LENGTH)
+        pad_audio = torch.zeros(padding, dtype=audio.dtype, device=audio.device)
+        pad_label = torch.zeros(padding_step, dtype=note_label.dtype, device=note_label.device)
 
         audio = torch.cat([audio, pad_audio])
         note_label = torch.cat([note_label, pad_label])
