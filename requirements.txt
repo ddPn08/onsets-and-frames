@@ -1,0 +1,9 @@
+torch
+torchaudio
+lightning
+
+pydantic
+pretty_midi
+tqdm
+mir_eval
+pillow
