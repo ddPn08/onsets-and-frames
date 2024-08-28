@@ -46,7 +46,7 @@ def main(
     learning_rate: float = 1e-4,
     logger: str = "none",
     logger_name: str = "training",
-    logger_project: str = "hft-transformer",
+    logger_project: str = "onsets-and-frames",
 ):
     dataset = MaestroDataset(
         dataset_dir, "train", sequence_length=sequence_length, mode=mode
