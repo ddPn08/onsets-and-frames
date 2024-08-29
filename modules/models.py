@@ -162,23 +162,24 @@ class OnsetsAndFramesPedal(nn.Module):
             nn.Linear(model_size, output_features),
             nn.Sigmoid(),
         )
-        self.frame_stack = nn.Sequential(
-            ConvStack(input_features, model_size),
-            nn.Linear(model_size, output_features),
-            nn.Sigmoid(),
-        )
-        self.combined_stack = nn.Sequential(
-            sequence_model(output_features * 3, model_size),
-            nn.Linear(model_size, output_features),
-            nn.Sigmoid(),
-        )
+        # self.frame_stack = nn.Sequential(
+        #     ConvStack(input_features, model_size),
+        #     nn.Linear(model_size, output_features),
+        #     nn.Sigmoid(),
+        # )
+        # self.combined_stack = nn.Sequential(
+        #     sequence_model(output_features * 3, model_size),
+        #     nn.Linear(model_size, output_features),
+        #     nn.Sigmoid(),
+        # )
 
     def forward(self, x: torch.Tensor):
         onset_pred = self.onset_stack(x)
         offset_pred = self.offset_stack(x)
-        activation_pred = self.frame_stack(x)
-        combined_pred = torch.cat(
-            [onset_pred.detach(), offset_pred.detach(), activation_pred], dim=-1
-        )
-        frame_pred = self.combined_stack(combined_pred)
-        return onset_pred, offset_pred, activation_pred, frame_pred
+        # activation_pred = self.frame_stack(x)
+        # combined_pred = torch.cat(
+        #     [onset_pred.detach(), offset_pred.detach(), activation_pred], dim=-1
+        # )
+        # frame_pred = self.combined_stack(combined_pred)
+        # return onset_pred, offset_pred, activation_pred, frame_pred
+        return onset_pred, offset_pred

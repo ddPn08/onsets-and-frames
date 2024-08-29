@@ -99,6 +99,10 @@ def main(
             name=logger_name,
             project=logger_project,
         )
+    elif logger == "tensorboard":
+        from pytorch_lightning.loggers import TensorBoardLogger
+
+        logger = TensorBoardLogger("lightning_logs", name=logger_name)
     else:
         logger = None
 

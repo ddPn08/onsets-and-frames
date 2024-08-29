@@ -46,6 +46,8 @@ def main(
     device: str = "cpu",
     onset_threshold: float = 0.5,
     frame_threshold: float = 0.5,
+    pedal_onset_threshold: float = 0.5,
+    pedal_offset_threshold: float = 0.5,
 ):
     device = torch.device(device)
 
@@ -87,7 +89,6 @@ def main(
 
     pedal_onset_pred_all = torch.zeros((n_steps, 1))
     pedal_offset_pred_all = torch.zeros((n_steps, 1))
-    pedal_frame_pred_all = torch.zeros((n_steps, 1))
 
     with torch.no_grad():
         for i in tqdm.tqdm(range(0, len(audio), sequence_length)):
@@ -98,70 +99,75 @@ def main(
             mel = mel.transpose(-1, -2)
             onset_pred, offset_pred, _, frame_pred, velocity_pred = model(mel)
 
-            onset_pred_all[step : step + onset_pred.shape[0]] = (
+            onset_pred = (
                 onset_pred.reshape((onset_pred.shape[1], onset_pred.shape[2]))
                 .detach()
                 .cpu()
             )
-            offset_pred_all[step : step + offset_pred.shape[0]] = (
+            offset_pred = (
                 offset_pred.reshape((offset_pred.shape[1], offset_pred.shape[2]))
                 .detach()
                 .cpu()
             )
-            frame_pred_all[step : step + frame_pred.shape[0]] = (
+            frame_pred = (
                 frame_pred.reshape((frame_pred.shape[1], frame_pred.shape[2]))
                 .detach()
                 .cpu()
             )
-            velocity_pred_all[step : step + velocity_pred.shape[0]] = (
+            velocity_pred = (
                 velocity_pred.reshape((velocity_pred.shape[1], velocity_pred.shape[2]))
                 .detach()
                 .cpu()
             )
 
+            onset_pred_all[step : step + onset_pred.shape[0]] = onset_pred
+            offset_pred_all[step : step + offset_pred.shape[0]] = offset_pred
+            frame_pred_all[step : step + frame_pred.shape[0]] = frame_pred
+            velocity_pred_all[step : step + velocity_pred.shape[0]] = velocity_pred
+
             if pedal_model is not None:
-                onset_pred, offset_pred, _, frame_pred = pedal_model(mel)
-                pedal_onset_pred_all[step : step + onset_pred.shape[0]] = (
+                onset_pred, offset_pred = pedal_model(mel)
+
+                onset_pred = (
                     onset_pred.reshape((onset_pred.shape[1], onset_pred.shape[2]))
                     .detach()
                     .cpu()
                 )
-                pedal_offset_pred_all[step : step + offset_pred.shape[0]] = (
+                offset_pred = (
                     offset_pred.reshape((offset_pred.shape[1], offset_pred.shape[2]))
                     .detach()
                     .cpu()
                 )
-                pedal_frame_pred_all[step : step + frame_pred.shape[0]] = (
-                    frame_pred.reshape((frame_pred.shape[1], frame_pred.shape[2]))
-                    .detach()
-                    .cpu()
-                )
 
-    scaling = HOP_LENGTH / SAMPLE_RATE
-    notes = extract_notes(
+                pedal_onset_pred_all[step : step + onset_pred.shape[0]] = onset_pred
+                pedal_offset_pred_all[step : step + offset_pred.shape[0]] = offset_pred
+
+    p_est, i_est, v_est = extract_notes(
         onset_pred_all,
         frame_pred_all,
         velocity_pred_all,
-        scaling,
         onset_threshold=onset_threshold,
         frame_threshold=frame_threshold,
     )
-    pedals = extract_pedals(
+    i_pedal_est = extract_pedals(
         pedal_onset_pred_all,
-        pedal_frame_pred_all,
-        scaling,
-        onset_threshold=onset_threshold,
-        frame_threshold=frame_threshold
+        pedal_offset_pred_all,
+        onset_threshold=pedal_onset_threshold,
+        offset_threshold=pedal_offset_threshold,
     )
 
-    if len(notes) == 0:
-        print("No notes found.")
-        return
+    scaling = HOP_LENGTH / SAMPLE_RATE
 
-    midi = create_midi(notes, pedals)
+    i_est = (i_est * scaling).reshape(-1, 2)
+    i_pedal_est = (i_pedal_est * scaling).reshape(-1, 2)
+
+    midi = create_midi(
+        p_est,
+        i_est,
+        v_est,
+        i_pedal_est,
+    )
     midi.write(output_path)
-
-    pass
 
 
 if __name__ == "__main__":

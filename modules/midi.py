@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
+import numpy as np
 import pretty_midi as pm
 import torch
 
@@ -90,10 +91,56 @@ def label_events(notes: List[Note], pedals: List[Pedal], audio_length: int):
     return note_label, velocity, pedal_label
 
 
+# def create_midi(
+#     notes: List[Note],
+#     pedals: List[Pedal] = [],
+# ):
+#     midi = pm.PrettyMIDI()
+#     instrument = pm.Instrument(0)
+
+#     for note in notes:
+#         instrument.notes.append(
+#             pm.Note(
+#                 velocity=note.velocity,
+#                 pitch=note.pitch,
+#                 start=note.start,
+#                 end=note.end,
+#             )
+#         )
+
+#     for pedal in pedals:
+#         cc = pm.ControlChange(number=64, value=127, time=pedal.start)
+#         instrument.control_changes.append(cc)
+#         cc = pm.ControlChange(number=64, value=0, time=pedal.end)
+#         instrument.control_changes.append(cc)
+
+#     midi.instruments.append(instrument)
+
+#     return midi
+
+
 def create_midi(
-    notes: List[Note],
-    pedals: List[Pedal] = [],
+    pitches: np.ndarray,
+    intervals: np.ndarray,
+    velocities: np.ndarray,
+    pedal_intervals: np.ndarray,
 ):
+    notes: List[Note] = []
+
+    for idx, (onset, offset) in enumerate(intervals):
+        onset = onset.item()
+        offset = offset.item()
+        pitch = pitches[idx].item() + MIN_MIDI
+        velocity = min(127, max(0, int(velocities[idx].item() * 127)))
+
+        notes.append(Note(pitch, onset, offset, velocity))
+
+    pedal_events = []
+    for onset, offset in pedal_intervals:
+        onset = onset.item()
+        offset = offset.item()
+        pedal_events.append(Pedal(onset, offset))
+
     midi = pm.PrettyMIDI()
     instrument = pm.Instrument(0)
 
@@ -107,7 +154,7 @@ def create_midi(
             )
         )
 
-    for pedal in pedals:
+    for pedal in pedal_events:
         cc = pm.ControlChange(number=64, value=127, time=pedal.start)
         instrument.control_changes.append(cc)
         cc = pm.ControlChange(number=64, value=0, time=pedal.end)
