@@ -1,5 +1,4 @@
 import json
-import math
 import os
 from typing import List, Literal, Tuple
 
@@ -75,7 +74,11 @@ class TranscriptionDataset(data.Dataset):
         padding = self.sequence_length - len(audio)
         padding_step = sequence_steps - len(note_label)
         pad_audio = torch.zeros(padding, dtype=audio.dtype, device=audio.device)
-        pad_label = torch.zeros((padding_step, note_label.shape[1]), dtype=note_label.dtype, device=note_label.device)
+        pad_label = torch.zeros(
+            (padding_step, note_label.shape[1]),
+            dtype=note_label.dtype,
+            device=note_label.device,
+        )
 
         audio = torch.cat([audio, pad_audio])
         note_label = torch.cat([note_label, pad_label])
@@ -94,24 +97,30 @@ class TranscriptionDataset(data.Dataset):
         audio = torch.load(segment.audio, weights_only=True)
         label = torch.load(segment.label, weights_only=True)
 
-        pedal = label["pedal"]
+        pedal_label = label["pedal"]  # (T,)
 
         start_step = segment.onset // HOP_LENGTH
         end_step = segment.offset // HOP_LENGTH
-        pad_step = segment.padding // HOP_LENGTH
-
-        pad_audio = torch.zeros(segment.padding, dtype=audio.dtype, device=audio.device)
-        pad_label = torch.zeros(pad_step, dtype=pedal.dtype, device=pedal.device)
 
         audio = audio[segment.onset : segment.offset]
-        pedal = pedal[start_step:end_step]
+        pedal_label = pedal_label[start_step:end_step]
+
+        sequence_steps = self.sequence_length // HOP_LENGTH
+
+        padding = self.sequence_length - len(audio)
+        padding_step = sequence_steps - len(pedal_label)
+
+        pad_audio = torch.zeros(padding, dtype=audio.dtype, device=audio.device)
+        pad_label = torch.zeros(
+            padding_step, dtype=pedal_label.dtype, device=pedal_label.device
+        )
 
         audio = torch.cat([audio, pad_audio])
-        pedal = torch.cat([pedal, pad_label])
+        pedal_label = torch.cat([pedal_label, pad_label])
 
-        onset = (pedal == 3).float()
-        offset = (pedal == 1).float()
-        frame = (pedal > 1).float()
+        onset = (pedal_label == 3).float()
+        offset = (pedal_label == 1).float()
+        frame = (pedal_label > 1).float()
 
         return audio, onset, offset, frame
 

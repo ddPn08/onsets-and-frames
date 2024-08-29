@@ -15,7 +15,7 @@ from lightning.pytorch.callbacks import (
 
 from modules.constants import MAX_MIDI, MIN_MIDI, N_MELS
 from modules.dataset import MaestroDataset
-from modules.models import OnsetsAndFrames
+from modules.models import OnsetsAndFrames, OnsetsAndFramesPedal
 from modules.training import TranscriberModule
 
 torch.set_float32_matmul_precision("medium")
@@ -70,7 +70,7 @@ def main(
         collate_fn=dataset.collate_fn,
     )
 
-    model = OnsetsAndFrames(N_MELS, MAX_MIDI - MIN_MIDI + 1, model_complexity)
+    model = OnsetsAndFrames(N_MELS, MAX_MIDI - MIN_MIDI + 1, model_complexity) if mode == "note" else OnsetsAndFramesPedal(N_MELS, 1, model_complexity)
 
     if optimizer == "adam":
         optimizer_class = torch.optim.Adam
