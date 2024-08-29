@@ -97,7 +97,7 @@ class TranscriberModule(LightningModule):
         return loss
 
     def pedal_training_step(self, batch: torch.Tensor, _: int):
-        audio, onset_label, offset_label, frame_label = batch
+        audio, onset_label, offset_label = batch
 
         mel = self.mel_transform(audio.reshape(-1, audio.shape[-1])[:, :-1])
         mel = torch.log(torch.clamp(mel, min=1e-5))
