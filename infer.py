@@ -1,3 +1,5 @@
+from typing import Optional
+
 import fire
 import torch
 import torchaudio
@@ -14,10 +16,9 @@ from modules.constants import (
     SAMPLE_RATE,
     WINDOW_LENGTH,
 )
-from modules.decoding import extract_notes
+from modules.decoding import extract_notes, extract_pedals
 from modules.midi import create_midi
-from modules.models import OnsetsAndFrames
-from modules.utils import save_pianoroll
+from modules.models import OnsetsAndFrames, OnsetsAndFramesPedal
 
 
 def fix_state_dict(state_dict):
@@ -39,17 +40,30 @@ def main(
     output_path: str,
     model_path: str,
     model_complexity: int = 48,
+    pedal_model_path: Optional[str] = None,
+    pedal_model_complexity: int = 48,
     sequence_length: int = 327680,
     device: str = "cpu",
     onset_threshold: float = 0.5,
     frame_threshold: float = 0.5,
 ):
     device = torch.device(device)
+
     state_dict = torch.load(model_path, map_location=device, weights_only=True)
     state_dict = fix_state_dict(state_dict)
     model = OnsetsAndFrames(N_MELS, MAX_MIDI - MIN_MIDI + 1, model_complexity)
     model.load_state_dict(state_dict)
     model.eval()
+
+    pedal_model: Optional[OnsetsAndFramesPedal] = None
+    if pedal_model_path is not None:
+        state_dict = torch.load(
+            pedal_model_path, map_location=device, weights_only=True
+        )
+        state_dict = fix_state_dict(state_dict)
+        pedal_model = OnsetsAndFramesPedal(N_MELS, 1, pedal_model_complexity)
+        pedal_model.load_state_dict(state_dict)
+        pedal_model.eval()
 
     audio = load_audio(wav_path)
     mel_transform = torchaudio.transforms.MelSpectrogram(
@@ -71,6 +85,10 @@ def main(
     frame_pred_all = torch.zeros((n_steps, MAX_MIDI - MIN_MIDI + 1))
     velocity_pred_all = torch.zeros((n_steps, MAX_MIDI - MIN_MIDI + 1))
 
+    pedal_onset_pred_all = torch.zeros((n_steps, 1))
+    pedal_offset_pred_all = torch.zeros((n_steps, 1))
+    pedal_frame_pred_all = torch.zeros((n_steps, 1))
+
     with torch.no_grad():
         for i in tqdm.tqdm(range(0, len(audio), sequence_length)):
             step = i // HOP_LENGTH
@@ -80,31 +98,44 @@ def main(
             mel = mel.transpose(-1, -2)
             onset_pred, offset_pred, _, frame_pred, velocity_pred = model(mel)
 
-            onset_pred = (
+            onset_pred_all[step : step + onset_pred.shape[0]] = (
                 onset_pred.reshape((onset_pred.shape[1], onset_pred.shape[2]))
                 .detach()
                 .cpu()
             )
-            offset_pred = (
+            offset_pred_all[step : step + offset_pred.shape[0]] = (
                 offset_pred.reshape((offset_pred.shape[1], offset_pred.shape[2]))
                 .detach()
                 .cpu()
             )
-            frame_pred = (
+            frame_pred_all[step : step + frame_pred.shape[0]] = (
                 frame_pred.reshape((frame_pred.shape[1], frame_pred.shape[2]))
                 .detach()
                 .cpu()
             )
-            velocity_pred = (
+            velocity_pred_all[step : step + velocity_pred.shape[0]] = (
                 velocity_pred.reshape((velocity_pred.shape[1], velocity_pred.shape[2]))
                 .detach()
                 .cpu()
             )
 
-            onset_pred_all[step : step + onset_pred.shape[0]] = onset_pred
-            offset_pred_all[step : step + offset_pred.shape[0]] = offset_pred
-            frame_pred_all[step : step + frame_pred.shape[0]] = frame_pred
-            velocity_pred_all[step : step + velocity_pred.shape[0]] = velocity_pred
+            if pedal_model is not None:
+                onset_pred, offset_pred, _, frame_pred = pedal_model(mel)
+                pedal_onset_pred_all[step : step + onset_pred.shape[0]] = (
+                    onset_pred.reshape((onset_pred.shape[1], onset_pred.shape[2]))
+                    .detach()
+                    .cpu()
+                )
+                pedal_offset_pred_all[step : step + offset_pred.shape[0]] = (
+                    offset_pred.reshape((offset_pred.shape[1], offset_pred.shape[2]))
+                    .detach()
+                    .cpu()
+                )
+                pedal_frame_pred_all[step : step + frame_pred.shape[0]] = (
+                    frame_pred.reshape((frame_pred.shape[1], frame_pred.shape[2]))
+                    .detach()
+                    .cpu()
+                )
 
     scaling = HOP_LENGTH / SAMPLE_RATE
     notes = extract_notes(
@@ -115,20 +146,19 @@ def main(
         onset_threshold=onset_threshold,
         frame_threshold=frame_threshold,
     )
+    pedals = extract_pedals(
+        pedal_onset_pred_all,
+        pedal_frame_pred_all,
+        scaling,
+        onset_threshold=onset_threshold,
+        frame_threshold=frame_threshold
+    )
 
     if len(notes) == 0:
         print("No notes found.")
         return
 
-    save_pianoroll(
-        output_path + ".png",
-        onset_pred_all,
-        frame_pred_all,
-        onset_threshold,
-        frame_threshold,
-    )
-
-    midi = create_midi(notes)
+    midi = create_midi(notes, pedals)
     midi.write(output_path)
 
     pass

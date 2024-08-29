@@ -92,6 +92,7 @@ def label_events(notes: List[Note], pedals: List[Pedal], audio_length: int):
 
 def create_midi(
     notes: List[Note],
+    pedals: List[Pedal] = [],
 ):
     midi = pm.PrettyMIDI()
     instrument = pm.Instrument(0)
@@ -105,6 +106,12 @@ def create_midi(
                 end=note.end,
             )
         )
+
+    for pedal in pedals:
+        cc = pm.ControlChange(number=64, value=127, time=pedal.start)
+        instrument.control_changes.append(cc)
+        cc = pm.ControlChange(number=64, value=0, time=pedal.end)
+        instrument.control_changes.append(cc)
 
     midi.instruments.append(instrument)
 

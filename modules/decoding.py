@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from modules.constants import MIN_MIDI
-from modules.midi import Note
+from modules.midi import Note, Pedal
 
 
 def extract_notes(
@@ -15,23 +15,6 @@ def extract_notes(
     onset_threshold: float = 0.5,
     frame_threshold: float = 0.5,
 ):
-    """
-    Finds the note timings based on the onsets and frames information
-
-    Parameters
-    ----------
-    onsets: torch.FloatTensor, shape = [frames, bins]
-    frames: torch.FloatTensor, shape = [frames, bins]
-    velocity: torch.FloatTensor, shape = [frames, bins]
-    onset_threshold: float
-    frame_threshold: float
-
-    Returns
-    -------
-    pitches: np.ndarray of bin_indices
-    intervals: np.ndarray of rows containing (onset_index, offset_index)
-    velocities: np.ndarray of velocity values
-    """
     onsets = (onsets > onset_threshold).cpu().to(torch.uint8)
     frames = (frames > frame_threshold).cpu().to(torch.uint8)
     onset_diff = torch.cat([onsets[:1, :], onsets[1:, :] - onsets[:-1, :]], dim=0) == 1
@@ -62,9 +45,7 @@ def extract_notes(
                 MIN_MIDI + pitch,
                 start=onset * scaling,
                 end=offset * scaling,
-                velocity=int(np.mean(velocity_samples))
-                if len(velocity_samples) > 0
-                else 0,
+                velocity=min(127, int(np.mean(velocity_samples) * 127 if len(velocity_samples) > 0 else 0)),
             )
             notes.append(note)
             pitches.append(pitch)
@@ -74,3 +55,32 @@ def extract_notes(
             )
 
     return notes
+
+def extract_pedals(
+    onsets: torch.Tensor,
+    frames: torch.Tensor,
+    scaling: float,
+    onset_threshold: float = 0.5,
+    frame_threshold: float = 0.5,
+):
+    onsets = (onsets > onset_threshold).cpu().to(torch.uint8)
+    frames = (frames > frame_threshold).cpu().to(torch.uint8)
+    onset_diff = torch.cat([onsets[:1], onsets[1:] - onsets[:-1]], dim=0) == 1
+
+    pedals: List[Pedal] = []
+
+    for i, pedal_on in enumerate(onset_diff):
+        if pedal_on.item():
+            onset = i
+            offset = i
+            while frames[offset].item():
+                offset += 1
+                if offset == frames.shape[0]:
+                    break
+            pedal = Pedal(
+                start=onset * scaling,
+                end=offset * scaling,
+            )
+            pedals.append(pedal)
+
+    return pedals
