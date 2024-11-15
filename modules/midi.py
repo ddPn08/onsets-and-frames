@@ -48,7 +48,7 @@ def parse_midi(midi_path: str):
             elif pedal is not None:
                 pedal.end = cc.time
                 pedals.append(pedal)
-                break
+                continue
             elif len(pedals) > 0:
                 pedals[-1].end = cc.time
 
@@ -90,33 +90,6 @@ def label_events(notes: List[Note], pedals: List[Pedal], audio_length: int):
 
     return note_label, velocity, pedal_label
 
-
-# def create_midi(
-#     notes: List[Note],
-#     pedals: List[Pedal] = [],
-# ):
-#     midi = pm.PrettyMIDI()
-#     instrument = pm.Instrument(0)
-
-#     for note in notes:
-#         instrument.notes.append(
-#             pm.Note(
-#                 velocity=note.velocity,
-#                 pitch=note.pitch,
-#                 start=note.start,
-#                 end=note.end,
-#             )
-#         )
-
-#     for pedal in pedals:
-#         cc = pm.ControlChange(number=64, value=127, time=pedal.start)
-#         instrument.control_changes.append(cc)
-#         cc = pm.ControlChange(number=64, value=0, time=pedal.end)
-#         instrument.control_changes.append(cc)
-
-#     midi.instruments.append(instrument)
-
-#     return midi
 
 
 def create_midi(
