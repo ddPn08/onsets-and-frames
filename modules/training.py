@@ -93,6 +93,7 @@ class TranscriberModule(LightningModule):
             on_step=False,
             on_epoch=True,
             prog_bar=True,
+            sync_dist=True,
         )
 
         return loss
@@ -126,6 +127,7 @@ class TranscriberModule(LightningModule):
             on_step=False,
             on_epoch=True,
             prog_bar=True,
+            sync_dist=True,
         )
 
         return loss
@@ -161,7 +163,7 @@ class TranscriberModule(LightningModule):
             )
 
             for key, value in metrics.items():
-                self.log(f"val/{key}", value, on_epoch=True)
+                self.log(f"val/{key}", value, on_epoch=True, sync_dist=True)
 
         onset_loss = F.binary_cross_entropy(onset_pred, onset_label)
         offset_loss = F.binary_cross_entropy(offset_pred, offset_label)
@@ -170,11 +172,11 @@ class TranscriberModule(LightningModule):
 
         loss = onset_loss + offset_loss + frame_loss + velocity_loss
 
-        self.log("val/loss/onset", onset_loss, on_epoch=True)
-        self.log("val/loss/offset", offset_loss, on_epoch=True)
-        self.log("val/loss/frame", frame_loss, on_epoch=True)
-        self.log("val/loss/velocity", velocity_loss, on_epoch=True)
-        self.log("val/loss/total", loss, on_epoch=True, prog_bar=True)
+        self.log("val/loss/onset", onset_loss, on_epoch=True, sync_dist=True)
+        self.log("val/loss/offset", offset_loss, on_epoch=True, sync_dist=True)
+        self.log("val/loss/frame", frame_loss, on_epoch=True, sync_dist=True)
+        self.log("val/loss/velocity", velocity_loss, on_epoch=True, sync_dist=True)
+        self.log("val/loss/total", loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
         return loss
 
@@ -204,14 +206,14 @@ class TranscriberModule(LightningModule):
             )
 
             for key, value in metrics.items():
-                self.log(f"val/{key}", value, on_epoch=True)
+                self.log(f"val/{key}", value, on_epoch=True, sync_dist=True)
 
         loss = onset_loss + offset_loss + frame_loss
 
-        self.log("val/loss/onset", onset_loss, on_epoch=True)
-        self.log("val/loss/offset", offset_loss, on_epoch=True)
-        self.log("val/loss/frame", frame_loss, on_epoch=True)
-        self.log("val/loss/total", loss, on_epoch=True, prog_bar=True)
+        self.log("val/loss/onset", onset_loss, on_epoch=True, sync_dist=True)
+        self.log("val/loss/offset", offset_loss, on_epoch=True, sync_dist=True)
+        self.log("val/loss/frame", frame_loss, on_epoch=True, sync_dist=True)
+        self.log("val/loss/total", loss, on_epoch=True, prog_bar=True, sync_dist=True)
 
         return loss
 
