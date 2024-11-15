@@ -58,10 +58,6 @@ class TranscriberModule(LightningModule):
             power=1.0,
         ).to(self.device)
 
-        self.all_loss = []
-        self.epoch_loss = []
-        self.val_loss = []
-
     def forward(self, x: torch.Tensor):
         return self.model(x)
 
@@ -90,10 +86,14 @@ class TranscriberModule(LightningModule):
         self.log("loss/offset", offset_loss)
         self.log("loss/frame", frame_loss)
         self.log("loss/velocity", velocity_loss)
-        self.log("loss/total", loss)
-
-        self.all_loss.append(loss.item())
-        self.epoch_loss.append(loss.item())
+        self.log("loss/total", loss, prog_bar=True)
+        self.log(
+            "loss/epoch",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
 
         return loss
 
@@ -119,10 +119,14 @@ class TranscriberModule(LightningModule):
         self.log("loss/onset", onset_loss)
         self.log("loss/offset", offset_loss)
         self.log("loss/frame", frame_loss)
-        self.log("loss/total", loss)
-
-        self.all_loss.append(loss.item())
-        self.epoch_loss.append(loss.item())
+        self.log("loss/total", loss, prog_bar=True)
+        self.log(
+            "loss/epoch",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
 
         return loss
 
@@ -166,14 +170,11 @@ class TranscriberModule(LightningModule):
 
         loss = onset_loss + offset_loss + frame_loss + velocity_loss
 
-        self.log("val/loss/onset", onset_loss)
-        self.log("val/loss/offset", offset_loss)
-        self.log("val/loss/frame", frame_loss)
-        self.log("val/loss/velocity", velocity_loss)
-        self.log("val/loss/total", loss)
-
-        self.all_loss.append(loss.item())
-        self.epoch_loss.append(loss.item())
+        self.log("val/loss/onset", onset_loss, on_epoch=True)
+        self.log("val/loss/offset", offset_loss, on_epoch=True)
+        self.log("val/loss/frame", frame_loss, on_epoch=True)
+        self.log("val/loss/velocity", velocity_loss, on_epoch=True)
+        self.log("val/loss/total", loss, on_epoch=True, prog_bar=True)
 
         return loss
 
@@ -207,12 +208,10 @@ class TranscriberModule(LightningModule):
 
         loss = onset_loss + offset_loss + frame_loss
 
-        self.log("val/loss/onset", onset_loss)
-        self.log("val/loss/offset", offset_loss)
-        self.log("val/loss/frame", frame_loss)
-        self.log("val/loss/total", loss)
-
-        self.val_loss.append(loss.item())
+        self.log("val/loss/onset", onset_loss, on_epoch=True)
+        self.log("val/loss/offset", offset_loss, on_epoch=True)
+        self.log("val/loss/frame", frame_loss, on_epoch=True)
+        self.log("val/loss/total", loss, on_epoch=True, prog_bar=True)
 
         return loss
 
@@ -221,12 +220,6 @@ class TranscriberModule(LightningModule):
             return self.note_validation_step(batch, _)
         else:
             return self.pedal_validation_step(batch, _)
-
-    def training_epoch_start(self, _):
-        self.log(
-            "loss/epoch", sum(self.epoch_loss) / len(self.epoch_loss), on_epoch=True
-        )
-        self.epoch_loss = []
 
     def configure_optimizers(self):
         return self.optimizer_class(self.parameters(), lr=self.lr)

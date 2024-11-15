@@ -2,7 +2,6 @@ import os
 from typing import Literal
 
 import fire
-import numpy as np
 import torch
 import torch.utils.data as data
 from lightning.fabric.plugins.precision.precision import _PRECISION_INPUT
@@ -10,7 +9,6 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.callbacks import (
     LearningRateMonitor,
     ModelCheckpoint,
-    TQDMProgressBar,
 )
 
 from modules.constants import MAX_MIDI, MIN_MIDI, N_MELS
@@ -19,17 +17,6 @@ from modules.models import OnsetsAndFrames, OnsetsAndFramesPedal
 from modules.training import TranscriberModule
 
 torch.set_float32_matmul_precision("medium")
-
-
-class MyProgressBar(TQDMProgressBar):
-    def get_metrics(self, trainer, pl_module):
-        items = super().get_metrics(trainer, pl_module)
-        items["loss"] = pl_module.all_loss[-1] if pl_module.all_loss else float("nan")
-        items["val_loss"] = pl_module.val_loss[-1] if pl_module.val_loss else float("nan")
-        items['val_loss_mean'] = np.mean(pl_module.val_loss or float("nan"))
-        items["all_loss_mean"] = np.mean(pl_module.all_loss or float("nan"))
-        items["epoch_loss_mean"] = np.mean(pl_module.epoch_loss or float("nan"))
-        return items
 
 
 def main(
@@ -72,7 +59,11 @@ def main(
         collate_fn=dataset.collate_fn,
     )
 
-    model = OnsetsAndFrames(N_MELS, MAX_MIDI - MIN_MIDI + 1, model_complexity) if mode == "note" else OnsetsAndFramesPedal(N_MELS, model_complexity)
+    model = (
+        OnsetsAndFrames(N_MELS, MAX_MIDI - MIN_MIDI + 1, model_complexity)
+        if mode == "note"
+        else OnsetsAndFramesPedal(N_MELS, model_complexity)
+    )
 
     if optimizer == "adam":
         optimizer_class = torch.optim.Adam
@@ -83,13 +74,12 @@ def main(
 
     checkpoint_dir = os.path.join(output_dir, "checkpoints")
     callbacks = [
-        MyProgressBar(),
         ModelCheckpoint(
-            every_n_epochs=1,
+            every_n_train_steps=1000,
             dirpath=checkpoint_dir,
             save_top_k=10,
             mode="max",
-            monitor="epoch",
+            monitor="step",
         ),
         LearningRateMonitor(logging_interval="step"),
     ]
