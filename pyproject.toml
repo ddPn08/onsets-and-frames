@@ -1,0 +1,19 @@
+[project]
+name = "onsets-and-frames"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fire>=0.7.0",
+    "lightning>=2.4.0",
+    "mir-eval>=0.7",
+    "pretty-midi>=0.2.10",
+    "pydantic>=2.9.2",
+    "soundfile>=0.12.1",
+    "tensorboard>=2.18.0",
+    "tensorboardx>=2.6.2.2",
+    "torch>=2.5.1",
+    "torchaudio>=2.5.1",
+    "tqdm>=4.67.0",
+]

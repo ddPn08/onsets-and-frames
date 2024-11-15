@@ -47,7 +47,7 @@ def main(
     onset_threshold: float = 0.5,
     frame_threshold: float = 0.5,
     pedal_onset_threshold: float = 0.5,
-    pedal_offset_threshold: float = 0.5,
+    pedal_frame_threshold: float = 0.5,
 ):
     device = torch.device(device)
 
@@ -89,6 +89,7 @@ def main(
 
     pedal_onset_pred_all = torch.zeros((n_steps, 1))
     pedal_offset_pred_all = torch.zeros((n_steps, 1))
+    pedal_frame_pred_all = torch.zeros((n_steps, 1))
 
     with torch.no_grad():
         for i in tqdm.tqdm(range(0, len(audio), sequence_length)):
@@ -126,7 +127,7 @@ def main(
             velocity_pred_all[step : step + velocity_pred.shape[0]] = velocity_pred
 
             if pedal_model is not None:
-                onset_pred, offset_pred = pedal_model(mel)
+                onset_pred, offset_pred, _, frame_pred = pedal_model(mel)
 
                 onset_pred = (
                     onset_pred.reshape((onset_pred.shape[1], onset_pred.shape[2]))
@@ -138,9 +139,15 @@ def main(
                     .detach()
                     .cpu()
                 )
+                frame_pred = (
+                    frame_pred.reshape((frame_pred.shape[1], frame_pred.shape[2]))
+                    .detach()
+                    .cpu()
+                )
 
                 pedal_onset_pred_all[step : step + onset_pred.shape[0]] = onset_pred
                 pedal_offset_pred_all[step : step + offset_pred.shape[0]] = offset_pred
+                pedal_frame_pred_all[step : step + frame_pred.shape[0]] = frame_pred
 
     p_est, i_est, v_est = extract_notes(
         onset_pred_all,
@@ -151,9 +158,9 @@ def main(
     )
     i_pedal_est = extract_pedals(
         pedal_onset_pred_all,
-        pedal_offset_pred_all,
+        pedal_frame_pred_all,
         onset_threshold=pedal_onset_threshold,
-        offset_threshold=pedal_offset_threshold,
+        frame_threshold=pedal_frame_threshold,
     )
 
     scaling = HOP_LENGTH / SAMPLE_RATE

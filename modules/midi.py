@@ -48,6 +48,7 @@ def parse_midi(midi_path: str):
             elif pedal is not None:
                 pedal.end = cc.time
                 pedals.append(pedal)
+                pedal = None
                 continue
             elif len(pedals) > 0:
                 pedals[-1].end = cc.time

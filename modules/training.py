@@ -13,7 +13,7 @@ from modules.constants import (
     SAMPLE_RATE,
     WINDOW_LENGTH,
 )
-from modules.evaluate import evaluate_note
+from modules.evaluate import evaluate_note, evaluate_pedal
 from modules.models import OnsetsAndFrames, OnsetsAndFramesPedal
 
 
@@ -60,6 +60,7 @@ class TranscriberModule(LightningModule):
 
         self.all_loss = []
         self.epoch_loss = []
+        self.val_loss = []
 
     def forward(self, x: torch.Tensor):
         return self.model(x)
@@ -193,6 +194,17 @@ class TranscriberModule(LightningModule):
         offset_loss = F.binary_cross_entropy(offset_pred, offset_label)
         frame_loss = F.binary_cross_entropy(frame_pred, frame_label)
 
+        for i in range(onset_label.shape[0]):
+            metrics = evaluate_pedal(
+                onset_label[i],
+                frame_label[i],
+                onset_pred[i],
+                frame_pred[i],
+            )
+
+            for key, value in metrics.items():
+                self.log(f"val/{key}", value, on_epoch=True)
+
         loss = onset_loss + offset_loss + frame_loss
 
         self.log("val/loss/onset", onset_loss)
@@ -200,8 +212,9 @@ class TranscriberModule(LightningModule):
         self.log("val/loss/frame", frame_loss)
         self.log("val/loss/total", loss)
 
-        self.all_loss.append(loss.item())
-        self.epoch_loss.append(loss.item())
+        self.val_loss.append(loss.item())
+
+        return loss
 
     def validation_step(self, batch: torch.Tensor, _: int):
         if self.mode == "note":
