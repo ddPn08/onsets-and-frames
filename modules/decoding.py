@@ -46,22 +46,29 @@ def extract_notes(
 
 def extract_pedals(
     onsets: torch.Tensor,
-    offsets: torch.Tensor,
+    frames: torch.Tensor,
     onset_threshold: float = 0.5,
     offset_threshold: float = 0.5,
 ):
     onsets = (onsets > onset_threshold).cpu().to(torch.uint8)
-    offsets = (offsets > offset_threshold).cpu().to(torch.uint8)
+    frames = (frames > offset_threshold).cpu().to(torch.uint8)
     onset_diff = torch.cat([onsets[:1, :], onsets[1:, :] - onsets[:-1, :]], dim=0) == 1
-    offset_diff = torch.cat([offsets[:1, :], offsets[1:, :] - offsets[:-1, :]], dim=0) == 1
 
     intervals = []
-    for onset, offset in zip(onset_diff.nonzero(), offset_diff.nonzero()):
-        onset_frame = onset[0].item()
-        offset_frame = offset[0].item()
 
-        if onset_frame < offset_frame:
-            intervals.append([onset_frame, offset_frame])
+    for nonzero in onset_diff.nonzero():
+        frame = nonzero[0].item()
+
+        onset = frame
+        offset = frame
+
+        while onsets[offset].item() or frames[offset].item():
+            offset += 1
+            if offset == onsets.shape[0]:
+                break
+
+        if offset > onset:
+            intervals.append([onset, offset])
 
     return np.array(intervals)
 

@@ -120,8 +120,9 @@ class TranscriptionDataset(data.Dataset):
 
         onset = (pedal_label == 3).float()
         offset = (pedal_label == 1).float()
+        frame = (pedal_label > 1).float()
 
-        return audio, onset, offset
+        return audio, onset, offset, frame
 
     def __getitem__(self, idx: int):
         if self.mode == "note":
@@ -139,11 +140,13 @@ class TranscriptionDataset(data.Dataset):
         return audio, onset, offset, frame, velocity
 
     def pedal_collate_fn(self, batch: torch.Tensor):
-        audio, onset, offset= zip(*batch)
+        audio, onset, offset, frame = zip(*batch)
         audio = torch.stack(audio)
         onset = torch.stack(onset)
         offset = torch.stack(offset)
-        return audio, onset, offset
+        frame = torch.stack(frame)
+
+        return audio, onset, offset, frame
 
     def collate_fn(self, batch: torch.Tensor):
         if self.mode == "note":

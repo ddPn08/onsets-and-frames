@@ -70,7 +70,7 @@ def main(
         collate_fn=dataset.collate_fn,
     )
 
-    model = OnsetsAndFrames(N_MELS, MAX_MIDI - MIN_MIDI + 1, model_complexity) if mode == "note" else OnsetsAndFramesPedal(N_MELS, 1, model_complexity)
+    model = OnsetsAndFrames(N_MELS, MAX_MIDI - MIN_MIDI + 1, model_complexity) if mode == "note" else OnsetsAndFramesPedal(N_MELS, model_complexity)
 
     if optimizer == "adam":
         optimizer_class = torch.optim.Adam

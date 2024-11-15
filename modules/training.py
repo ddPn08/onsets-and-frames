@@ -13,7 +13,7 @@ from modules.constants import (
     SAMPLE_RATE,
     WINDOW_LENGTH,
 )
-from modules.evaluate import evaluate_note, evaluate_pedal
+from modules.evaluate import evaluate_note
 from modules.models import OnsetsAndFrames, OnsetsAndFramesPedal
 
 
@@ -97,25 +97,27 @@ class TranscriberModule(LightningModule):
         return loss
 
     def pedal_training_step(self, batch: torch.Tensor, _: int):
-        audio, onset_label, offset_label = batch
+        audio, onset_label, offset_label, frame_label = batch
 
         mel = self.mel_transform(audio.reshape(-1, audio.shape[-1])[:, :-1])
         mel = torch.log(torch.clamp(mel, min=1e-5))
         mel = mel.transpose(-1, -2)
 
-        # onset_pred, offset_pred, _, frame_pred = self.model(mel)
-        onset_pred, offset_pred, = self.model(mel)
+        onset_pred, offset_pred, _, frame_pred = self.model(mel)
 
         onset_pred = onset_pred.reshape(onset_label.shape)
         offset_pred = offset_pred.reshape(offset_label.shape)
+        frame_pred = frame_pred.reshape(frame_label.shape)
 
         onset_loss = F.binary_cross_entropy(onset_pred, onset_label)
         offset_loss = F.binary_cross_entropy(offset_pred, offset_label)
+        frame_loss = F.binary_cross_entropy(frame_pred, frame_label)
 
-        loss = onset_loss + offset_loss
+        loss = onset_loss + offset_loss + frame_loss
 
         self.log("loss/onset", onset_loss)
         self.log("loss/offset", offset_loss)
+        self.log("loss/frame", frame_loss)
         self.log("loss/total", loss)
 
         self.all_loss.append(loss.item())
@@ -128,7 +130,7 @@ class TranscriberModule(LightningModule):
             return self.note_training_step(batch, _)
         else:
             return self.pedal_training_step(batch, _)
-        
+
     def note_validation_step(self, batch: torch.Tensor, _: int):
         audio, onset_label, offset_label, frame_label, velocity_label = batch
 
@@ -175,29 +177,32 @@ class TranscriberModule(LightningModule):
         return loss
 
     def pedal_validation_step(self, batch: torch.Tensor, _: int):
-        audio, onset_label, offset_label = batch
+        audio, onset_label, offset_label, frame_label = batch
 
         mel = self.mel_transform(audio.reshape(-1, audio.shape[-1])[:, :-1])
         mel = torch.log(torch.clamp(mel, min=1e-5))
         mel = mel.transpose(-1, -2)
 
-        onset_pred, offset_pred = self.model(mel)
+        onset_pred, offset_pred, _, frame_pred = self.model(mel)
 
         onset_pred = onset_pred.reshape(onset_label.shape)
         offset_pred = offset_pred.reshape(offset_label.shape)
+        frame_pred = frame_pred.reshape(frame_label.shape)
 
         onset_loss = F.binary_cross_entropy(onset_pred, onset_label)
         offset_loss = F.binary_cross_entropy(offset_pred, offset_label)
+        frame_loss = F.binary_cross_entropy(frame_pred, frame_label)
 
-        loss = onset_loss + offset_loss
+        loss = onset_loss + offset_loss + frame_loss
 
         self.log("val/loss/onset", onset_loss)
         self.log("val/loss/offset", offset_loss)
+        self.log("val/loss/frame", frame_loss)
         self.log("val/loss/total", loss)
 
         self.all_loss.append(loss.item())
         self.epoch_loss.append(loss.item())
-        
+
     def validation_step(self, batch: torch.Tensor, _: int):
         if self.mode == "note":
             return self.note_validation_step(batch, _)
@@ -205,7 +210,9 @@ class TranscriberModule(LightningModule):
             return self.pedal_validation_step(batch, _)
 
     def training_epoch_start(self, _):
-        self.log("loss/epoch", sum(self.epoch_loss) / len(self.epoch_loss))
+        self.log(
+            "loss/epoch", sum(self.epoch_loss) / len(self.epoch_loss), on_epoch=True
+        )
         self.epoch_loss = []
 
     def configure_optimizers(self):
