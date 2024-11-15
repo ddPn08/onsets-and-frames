@@ -75,11 +75,11 @@ def main(
     checkpoint_dir = os.path.join(output_dir, "checkpoints")
     callbacks = [
         ModelCheckpoint(
-            every_n_train_steps=1000,
+            every_n_epochs=1,
             dirpath=checkpoint_dir,
-            save_top_k=10,
+            save_top_k=100,
             mode="max",
-            monitor="step",
+            monitor="epoch",
         ),
         LearningRateMonitor(logging_interval="step"),
     ]
