@@ -36,6 +36,7 @@ def main(
     logger: str = "none",
     logger_name: str = "training",
     logger_project: str = "onsets-and-frames",
+    resume: str = None,
 ):
     dataset = MaestroDataset(
         dataset_dir, "train", sequence_length=sequence_length, mode=mode
@@ -107,7 +108,7 @@ def main(
         callbacks=callbacks,
         precision=precision,
     )
-    trainer.fit(module, dataloader, val_dataloader)
+    trainer.fit(module, dataloader, val_dataloader, ckpt_path=resume)
 
     state_dict = module.model.state_dict()
     torch.save(state_dict, os.path.join(output_dir, "model.pt"))
